@@ -144,8 +144,8 @@ const ImageModal = ({ src, allImages, isOpen, onClose, onPrev, onNext }) => {
                 <div className="w-12 h-12 border-4 border-[#EAB308] border-t-transparent rounded-full animate-spin" />
               </div>
             )}
-            <img 
-              src={src} 
+            <img
+              src={src}
               alt="Project View"
               className={`max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
               onLoad={() => setImageLoaded(true)}
@@ -225,9 +225,9 @@ const AdStyleGallery = ({ images, title, subtitle, onImageClick }) => {
         <SectionTitle align="center" subtitle={subtitle}>
           {title}
         </SectionTitle>
-        <div className="text-center py-12 text-[#4A4A4A] dark:text-[#A0A0A0] bg-white/5 rounded-2xl border border-dashed border-[#EAB308]/30">
-          <p className="text-lg">No {title} designs available yet.</p>
-          <p className="text-sm mt-2 opacity-60">Check back soon for updates!</p>
+        <div className="text-center py-12 bg-theme-secondary rounded-2xl border border-dashed border-[#EAB308]/30">
+          <p className="text-lg text-theme-primary">No {title} designs available yet.</p>
+          <p className="text-sm mt-2 text-theme-secondary opacity-60">Check back soon for updates!</p>
         </div>
       </div>
     )
@@ -389,7 +389,7 @@ const AdStyleGallery = ({ images, title, subtitle, onImageClick }) => {
           <motion.p 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center text-sm text-[#4A4A4A] dark:text-[#A0A0A0] mt-4"
+            className="text-center text-sm text-theme-secondary mt-4"
           >
             Only one image available
           </motion.p>
@@ -407,11 +407,11 @@ const SectionTitle = ({ children, align = "left", subtitle }) => (
     viewport={{ once: true }}
     className={`mb-12 ${align === 'center' ? 'text-center' : ''}`}
   >
-    <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-[#1E1E1E] dark:text-white">
+    <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-theme-primary">
       {children}
     </h2>
     {subtitle && (
-      <p className="mt-4 text-[#4A4A4A] dark:text-[#A0A0A0] text-lg max-w-2xl mx-auto">
+      <p className="mt-4 text-theme-secondary text-lg max-w-2xl mx-auto">
         {subtitle}
       </p>
     )}
@@ -421,11 +421,8 @@ const SectionTitle = ({ children, align = "left", subtitle }) => (
 
 function App() {
   const [darkMode, setDarkMode] = useState(() => {
-    // Check local storage first, then system preference
     const saved = localStorage.getItem('darkMode')
-    if (saved !== null) {
-      return saved === 'true'
-    }
+    if (saved !== null) return saved === 'true'
     return window.matchMedia('(prefers-color-scheme: dark)').matches
   })
   const [selectedImageIndex, setSelectedImageIndex] = useState(null)
@@ -441,18 +438,31 @@ function App() {
   // Use optimized assets
   const { brandGuideline, brandPresentation, socialMedia, uiux, allAssets, loading } = useOptimizedAssets()
 
-  // Manual dark mode toggle with localStorage
-  const toggleDarkMode = () => {
-    const newMode = !darkMode
-    setDarkMode(newMode)
-    localStorage.setItem('darkMode', newMode)
-    // Apply dark mode class immediately
-    document.documentElement.classList.toggle('dark', newMode)
-  }
-
+  // Apply dark mode class to root html element
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', darkMode)
+    if (darkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    localStorage.setItem('darkMode', String(darkMode))
   }, [darkMode])
+
+  // System theme change listener
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleChange = (e) => {
+      if (localStorage.getItem('darkMode') === null) {
+        setDarkMode(e.matches)
+      }
+    }
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
+
+  const toggleDarkMode = () => {
+    setDarkMode(prev => !prev)
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -496,7 +506,6 @@ function App() {
     setSelectedImageIndex((prev) => (prev - 1 + allAssets.length) % allAssets.length)
   }
 
-  // Show loading state if needed
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
@@ -506,15 +515,15 @@ function App() {
   }
 
   return (
-    <div className="bg-white dark:bg-black text-[#1E1E1E] dark:text-white transition-colors duration-500 overflow-x-hidden">
+    <div className="bg-theme-primary text-theme-primary transition-colors duration-500 overflow-x-hidden min-h-screen">
       
       {/* Navigation */}
       <motion.nav 
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.8 }}
-        className={`fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-6 md:px-12 py-6 transition-all ${
-          scrolled ? "bg-white/80 dark:bg-black/80 backdrop-blur-md shadow-sm" : "bg-transparent"
+        className={`fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-6 md:px-12 transition-all ${
+          scrolled ? "bg-theme-primary/80 backdrop-blur-md shadow-sm py-2" : "bg-transparent py-4"
         }`}
       >
         <motion.div 
@@ -525,14 +534,14 @@ function App() {
           <div className="w-10 h-10 rounded-full bg-[#EAB308] overflow-hidden">
             <img src={profilePic} alt="Ron" className="w-full h-full object-cover" />
           </div>
-          <span className={`font-bold transition-colors ${scrolled ? "text-[#1E1E1E] dark:text-white" : "text-white"}`}>
+          <span className={`font-bold transition-colors ${scrolled ? "text-theme-primary" : "text-white"}`}>
             RON MEDINA
           </span>
         </motion.div>
 
         {/* Desktop Menu */}
         <div className="hidden md:flex items-center gap-8">
-          <div className={`flex gap-8 text-sm font-medium transition-colors ${scrolled ? "text-[#4A4A4A] dark:text-white/80" : "text-white/80"}`}>
+          <div className={`flex gap-8 text-sm font-medium transition-colors ${scrolled ? "text-theme-secondary" : "text-white/80"}`}>
             <motion.button
               whileHover={{ y: -2 }}
               onClick={() => scrollToSection(workRef)}
@@ -559,11 +568,15 @@ function App() {
           <button
             onClick={toggleDarkMode}
             className={`p-2 rounded-full transition-colors ${
-              scrolled ? "bg-black/5 dark:bg-white/10" : "bg-white/10"
+              scrolled ? "bg-theme-secondary border-theme border" : "bg-white/10"
             }`}
             aria-label="Toggle dark mode"
           >
-            {darkMode ? <Sun size={18} className={scrolled ? "text-[#1E1E] dark:text-white" : "text-white"} /> : <Moon size={18} className={scrolled ? "text-[#1E1E] dark:text-white" : "text-white"} />}
+            {darkMode ? (
+              <Sun size={18} className={scrolled ? "text-theme-primary" : "text-white"} />
+            ) : (
+              <Moon size={18} className={scrolled ? "text-theme-primary" : "text-white"} />
+            )}
           </button>
         </div>
 
@@ -571,11 +584,15 @@ function App() {
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className={`md:hidden p-2 rounded-full transition-colors ${
-            scrolled ? "bg-black/5 dark:bg-white/10" : "bg-white/10"
+            scrolled ? "bg-theme-secondary border-theme border" : "bg-white/10"
           }`}
           aria-label="Toggle menu"
         >
-          {mobileMenuOpen ? <X size={18} className={scrolled ? "text-[#1E1E] dark:text-white" : "text-white"} /> : <Menu size={18} className={scrolled ? "text-[#1E1E] dark:text-white" : "text-white"} />}
+          {mobileMenuOpen ? (
+            <X size={18} className={scrolled ? "text-theme-primary" : "text-white"} />
+          ) : (
+            <Menu size={18} className={scrolled ? "text-theme-primary" : "text-white"} />
+          )}
         </button>
 
         {/* Mobile Menu Dropdown */}
@@ -585,31 +602,31 @@ function App() {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="absolute top-20 left-4 right-4 md:hidden bg-white dark:bg-black rounded-2xl shadow-xl border border-[#E5E5E5] dark:border-[#2A2A2A] p-4"
+              className="absolute top-20 left-4 right-4 md:hidden bg-theme-primary rounded-2xl shadow-xl border border-theme p-4"
             >
               <div className="flex flex-col gap-4">
                 <button
                   onClick={() => scrollToSection(workRef)}
-                  className="text-left px-4 py-3 hover:bg-[#F5F5F5] dark:hover:bg-[#1a1a1a] rounded-xl transition-colors"
+                  className="text-left px-4 py-3 hover:bg-theme-secondary rounded-xl transition-colors text-theme-primary"
                 >
                   Work
                 </button>
                 <button
                   onClick={() => scrollToSection(aboutRef)}
-                  className="text-left px-4 py-3 hover:bg-[#F5F5F5] dark:hover:bg-[#1a1a1a] rounded-xl transition-colors"
+                  className="text-left px-4 py-3 hover:bg-theme-secondary rounded-xl transition-colors text-theme-primary"
                 >
                   About
                 </button>
                 <button
                   onClick={() => scrollToSection(contactRef)}
-                  className="text-left px-4 py-3 hover:bg-[#F5F5F5] dark:hover:bg-[#1a1a1a] rounded-xl transition-colors"
+                  className="text-left px-4 py-3 hover:bg-theme-secondary rounded-xl transition-colors text-theme-primary"
                 >
                   Contact
                 </button>
-                <div className="border-t border-[#E5E5E5] dark:border-[#2A2A2A] pt-4">
+                <div className="border-t border-theme pt-4">
                   <button
                     onClick={toggleDarkMode}
-                    className="flex items-center justify-between w-full px-4 py-3 hover:bg-[#F5F5F5] dark:hover:bg-[#1a1a1a] rounded-xl transition-colors"
+                    className="flex items-center justify-between w-full px-4 py-3 hover:bg-theme-secondary rounded-xl transition-colors text-theme-primary"
                   >
                     <span>Theme</span>
                     {darkMode ? <Sun size={18} /> : <Moon size={18} />}
@@ -621,8 +638,8 @@ function App() {
         </AnimatePresence>
       </motion.nav>
 
-      {/* Hero Section - Fixed responsive down arrow */}
-      <section ref={heroRef} className="relative h-screen flex items-center justify-center overflow-hidden bg-black">
+      {/* Hero Section */}
+      <section ref={heroRef} className="relative h-screen flex items-center justify-center overflow-hidden bg-black transition-colors duration-500">
         <motion.div
           style={{ opacity: heroOpacity, scale: heroScale }}
           className="absolute inset-0"
@@ -632,8 +649,8 @@ function App() {
             transition={{ duration: 20, repeat: Infinity }}
             className="absolute inset-0"
           >
-            <img src={bgImage} alt="Background" className="w-full h-full object-cover opacity-60" />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black" />
+            <img src={bgImage} alt="Background" className="w-full h-full object-cover opacity-60 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black transition-colors duration-500" />
           </motion.div>
         </motion.div>
 
@@ -669,7 +686,6 @@ function App() {
           </motion.div>
         </div>
 
-        {/* Fixed responsive down arrow - positioned absolutely at bottom */}
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -684,14 +700,14 @@ function App() {
           >
             <ChevronDown 
               size={24} 
-              className="sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 text-white/60 hover:text-[#EAB308]" 
+              className="sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 text-white/60 hover:text-[#EAB308]"
             />
           </motion.div>
         </motion.button>
       </section>
 
       {/* Main Content */}
-      <main ref={mainRef} className="relative z-20 bg-white dark:bg-black">
+      <main ref={mainRef} className="relative z-20 bg-theme-primary transition-colors duration-500">
         
         {/* Profile Section - About */}
         <section ref={aboutRef} id="about" className="py-16 sm:py-20 md:py-24 lg:py-32 px-4 sm:px-6 md:px-8 lg:px-12">
@@ -707,7 +723,7 @@ function App() {
               >
                 <div className="relative aspect-[3/4] max-w-sm sm:max-w-md mx-auto">
                   <div className="absolute inset-0 bg-[#EAB308] rounded-[40px] sm:rounded-[50px] md:rounded-[60px] rotate-3 group-hover:rotate-6 transition-transform duration-500" />
-                  <div className="absolute inset-3 sm:inset-4 bg-black rounded-[30px] sm:rounded-[40px] md:rounded-[50px] overflow-hidden">
+                  <div className="absolute inset-3 sm:inset-4 bg-black rounded-[30px] sm:rounded-[40px] md:rounded-[50px] overflow-hidden transition-colors duration-500">
                     <img 
                       src={profilePic} 
                       alt="Ron Medina"
@@ -723,12 +739,12 @@ function App() {
                 viewport={{ once: true }}
                 className="space-y-4 sm:space-y-5 md:space-y-6 px-2 sm:px-0"
               >
-                <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.1]">
+                <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.1] text-theme-primary">
                   I'm <span className="text-[#EAB308]">Ron Medina</span>
                 </h2>
-                <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-[#4A4A4A] dark:text-[#A0A0A0] leading-relaxed">
+                <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-theme-secondary leading-relaxed">
                   Designing simplicity out of complexity. 
-                  <span className="block mt-2 sm:mt-3 md:mt-4 text-[#1E1E1E] dark:text-white font-medium">
+                  <span className="block mt-2 sm:mt-3 md:mt-4 text-theme-primary font-medium">
                     Currently crafting digital experiences that matter.
                   </span>
                 </p>
@@ -747,7 +763,7 @@ function App() {
                       viewport={{ once: true }}
                     >
                       <div className="text-xl sm:text-2xl md:text-3xl font-bold text-[#EAB308]">{stat.number}</div>
-                      <div className="text-xs sm:text-sm text-[#4A4A4A] dark:text-[#A0A0A0]">{stat.label}</div>
+                      <div className="text-xs sm:text-sm text-theme-secondary">{stat.label}</div>
                     </motion.div>
                   ))}
                 </div>
@@ -767,7 +783,7 @@ function App() {
         </section>
 
         {/* Work Sections */}
-        <section ref={workRef} id="work" className="py-16 sm:py-20 md:py-24 lg:py-32 px-4 sm:px-6 md:px-8 lg:px-12 bg-[#F5F5F5] dark:bg-black">
+        <section ref={workRef} id="work" className="py-16 sm:py-20 md:py-24 lg:py-32 px-4 sm:px-6 md:px-8 lg:px-12 bg-theme-secondary transition-colors duration-500">
           <div className="max-w-7xl mx-auto">
             
             {/* UI/UX Design */}
@@ -829,7 +845,7 @@ function App() {
         </section>
 
         {/* Promise Section */}
-        <section className="py-16 sm:py-20 md:py-24 lg:py-32 px-4 sm:px-6 md:px-8 lg:px-12">
+        <section className="py-16 sm:py-20 md:py-24 lg:py-32 px-4 sm:px-6 md:px-8 lg:px-12 bg-theme-primary transition-colors duration-500">
           <div className="max-w-7xl mx-auto">
             <SectionTitle align="center" subtitle="What I always deliver">
               Two Things
@@ -854,11 +870,11 @@ function App() {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.2 }}
                   viewport={{ once: true }}
-                  className="group p-4 sm:p-5 md:p-6 lg:p-8 rounded-[30px] sm:rounded-[35px] md:rounded-[40px] bg-white dark:bg-black border border-[#E5E5E5] dark:border-[#2A2A2A] hover:shadow-xl transition-all duration-500"
+                  className="group p-4 sm:p-5 md:p-6 lg:p-8 rounded-[30px] sm:rounded-[35px] md:rounded-[40px] bg-theme-primary border border-theme hover:shadow-xl transition-all duration-500"
                 >
                   <div className="text-4xl sm:text-5xl md:text-6xl font-black text-[#EAB308]/20 mb-3 sm:mb-4 md:mb-5 lg:mb-6">{item.number}</div>
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3 md:mb-4">{item.title}</h3>
-                  <p className="text-sm sm:text-base md:text-lg text-[#4A4A4A] dark:text-[#A0A0A0] leading-relaxed">
+                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3 md:mb-4 text-theme-primary">{item.title}</h3>
+                  <p className="text-sm sm:text-base md:text-lg text-theme-secondary leading-relaxed">
                     {item.description}
                   </p>
                 </motion.div>
@@ -894,19 +910,19 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="py-16 sm:py-20 md:py-24 px-4 sm:px-6 md:px-8 lg:px-12 bg-black text-white relative overflow-hidden">
+      <footer className="py-16 sm:py-20 md:py-24 px-4 sm:px-6 md:px-8 lg:px-12 bg-theme-primary text-theme-primary transition-colors duration-500 relative overflow-hidden border-t border-theme">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-10 md:gap-12">
             <div>
               <h4 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-5 md:mb-6">Ron Medina</h4>
-              <p className="text-sm sm:text-base text-white/60">Designing simplicity out of complexity.</p>
+              <p className="text-sm sm:text-base text-theme-secondary opacity-60">Designing simplicity out of complexity.</p>
               <div className="flex gap-3 sm:gap-4 mt-4 sm:mt-5 md:mt-6">
                 <motion.a
                   whileHover={{ scale: 1.1 }}
                   href="https://linkedin.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-[#EAB308] transition-colors"
+                  className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-theme-secondary border border-theme rounded-full flex items-center justify-center hover:bg-[#EAB308] hover:text-black transition-colors"
                 >
                   <span className="sr-only">LinkedIn</span>
                   <svg className="w-4 h-4 sm:w-[18px] sm:h-[18px] md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
@@ -916,7 +932,7 @@ function App() {
                   href="https://instagram.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-[#EAB308] transition-colors"
+                  className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-theme-secondary border border-theme rounded-full flex items-center justify-center hover:bg-[#EAB308] hover:text-black transition-colors"
                 >
                   <span className="sr-only">Instagram</span>
                   <svg className="w-4 h-4 sm:w-[18px] sm:h-[18px] md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1112.324 0 6.162 6.162 0 01-12.324 0zM12 16a4 4 0 110-8 4 4 0 010 8zm4.965-10.405a1.44 1.44 0 112.881.001 1.44 1.44 0 01-2.881-.001z"/></svg>
@@ -926,19 +942,19 @@ function App() {
             
             <div>
               <h4 className="text-base sm:text-lg font-medium mb-3 sm:mb-4 md:mb-6">Navigation</h4>
-              <ul className="space-y-2 sm:space-y-2.5 md:space-y-3 text-white/60 text-sm sm:text-base">
+              <ul className="space-y-2 sm:space-y-2.5 md:space-y-3 opacity-60 text-sm sm:text-base">
                 <li>
-                  <button onClick={() => scrollToSection(workRef)} className="hover:text-white transition-colors">
+                  <button onClick={() => scrollToSection(workRef)} className="hover:text-[#EAB308] transition-colors">
                     Work
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => scrollToSection(aboutRef)} className="hover:text-white transition-colors">
+                  <button onClick={() => scrollToSection(aboutRef)} className="hover:text-[#EAB308] transition-colors">
                     About
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => scrollToSection(contactRef)} className="hover:text-white transition-colors">
+                  <button onClick={() => scrollToSection(contactRef)} className="hover:text-[#EAB308] transition-colors">
                     Contact
                   </button>
                 </li>
@@ -947,24 +963,24 @@ function App() {
             
             <div>
               <h4 className="text-base sm:text-lg font-medium mb-3 sm:mb-4 md:mb-6">Connect</h4>
-              <ul className="space-y-2 sm:space-y-2.5 md:space-y-3 text-white/60 text-sm sm:text-base">
+              <ul className="space-y-2 sm:space-y-2.5 md:space-y-3 opacity-60 text-sm sm:text-base">
                 <li>
-                  <a href="mailto:hello@ronmedina.com" className="hover:text-white transition-colors">
+                  <a href="mailto:hello@ronmedina.com" className="hover:text-[#EAB308] transition-colors">
                     hello@ronmedina.com
                   </a>
                 </li>
-                <li><a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">LinkedIn</a></li>
-                <li><a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Instagram</a></li>
+                <li><a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="hover:text-[#EAB308] transition-colors">LinkedIn</a></li>
+                <li><a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-[#EAB308] transition-colors">Instagram</a></li>
               </ul>
             </div>
           </div>
           
-          <div className="border-t border-white/10 mt-10 sm:mt-12 md:mt-16 pt-6 sm:pt-7 md:pt-8 text-center text-white/40 text-xs sm:text-sm">
+          <div className="border-t border-theme mt-10 sm:mt-12 md:mt-16 pt-6 sm:pt-7 md:pt-8 text-center opacity-40 text-xs sm:text-sm">
             <p>© 2024 Ron Medina. All rights reserved.</p>
           </div>
         </div>
         
-        <div className="absolute bottom-0 left-0 right-0 text-center opacity-[0.03] pointer-events-none text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black whitespace-nowrap">
+        <div className="absolute bottom-0 left-0 right-0 text-center opacity-[0.03] pointer-events-none text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black whitespace-nowrap text-theme-primary">
           RON MEDINA • RON MEDINA • RON MEDINA
         </div>
       </footer>
