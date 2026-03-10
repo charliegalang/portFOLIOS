@@ -4,13 +4,39 @@ import { useRef, useState, useEffect, useMemo } from 'react'
 import { uploadToCloudinary, fetchImagesByTag, deleteFromCloudinary } from './CloudinaryService'
 
 // Static Assets
-import bgImage from './assets/BGImage.png'
-import profilePic from './assets/52323_2512856396012_1996282797_o 1.svg'
+import defaultBg from './assets/BGImage.png'
+import defaultProfile from './assets/52323_2512856396012_1996282797_o 1.svg'
 
-// Optimized Image Modal Component with loading state
+// Optimized Image Modal Component
 const ImageModal = ({ src, isOpen, onClose, onPrev, onNext }) => {
   const [imageLoaded, setImageLoaded] = useState(false)
+  const [touchStart, setTouchStart] = useState(0)
+  const [touchEnd, setTouchEnd] = useState(0)
   
+  // Handle Android back button
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isOpen) {
+        onClose()
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [isOpen, onClose])
+
+  // Update browser history when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      // Push a new state so back button closes modal
+      window.history.pushState({ modal: true }, '')
+    } else {
+      // Go back if we have a modal state (but don't trigger popstate)
+      if (window.history.state?.modal) {
+        window.history.back()
+      }
+    }
+  }, [isOpen])
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose()
@@ -26,6 +52,31 @@ const ImageModal = ({ src, isOpen, onClose, onPrev, onNext }) => {
     if (isOpen) setImageLoaded(false)
   }, [isOpen, src])
 
+  // Handle touch gestures for mobile
+  const handleTouchStart = (e) => {
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > 50
+    const isRightSwipe = distance < -50
+    
+    if (isLeftSwipe) {
+      onNext()
+    } else if (isRightSwipe) {
+      onPrev()
+    }
+    
+    setTouchStart(0)
+    setTouchEnd(0)
+  }
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -35,29 +86,37 @@ const ImageModal = ({ src, isOpen, onClose, onPrev, onNext }) => {
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl"
           onClick={onClose}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
-          {/* Close Button */}
+          {/* Close Button - Made larger for mobile */}
           <button
             onClick={(e) => { e.stopPropagation(); onClose() }}
-            className="absolute top-6 right-6 md:top-8 md:right-8 p-3 md:p-4 bg-white/10 backdrop-blur-md rounded-full hover:bg-white/20 transition-colors z-[101]"
+            className="absolute top-8 right-8 p-4 bg-white/10 backdrop-blur-md rounded-full hover:bg-white/20 transition-colors z-[101]"
           >
-            <X size={24} className="text-white" />
+            <X size={28} className="text-white" />
           </button>
 
-          {/* Navigation Buttons - Shrunk and pushed to edges for mobile */}
+          {/* Navigation Buttons - Hidden on mobile, shown on desktop */}
           <button
             onClick={(e) => { e.stopPropagation(); onPrev() }}
-            className="absolute left-2 md:left-8 p-2 md:p-4 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-full transition-all group z-[101]"
+            className="hidden md:block absolute left-2 md:left-8 p-2 md:p-4 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-full transition-all group z-[101]"
           >
-            <ChevronLeft className="text-white w-6 h-6 md:w-8 md:h-8 group-hover:scale-110 transition-transform" />
+            <ChevronLeft size={32} className="text-white group-hover:scale-110 transition-transform" />
           </button>
 
           <button
             onClick={(e) => { e.stopPropagation(); onNext() }}
-            className="absolute right-2 md:right-8 p-2 md:p-4 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-full transition-all group z-[101]"
+            className="hidden md:block absolute right-2 md:right-8 p-2 md:p-4 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-full transition-all group z-[101]"
           >
-            <ChevronRight className="text-white w-6 h-6 md:w-8 md:h-8 group-hover:scale-110 transition-transform" />
+            <ChevronRight size={32} className="text-white group-hover:scale-110 transition-transform" />
           </button>
+          
+          {/* Swipe instruction for mobile */}
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 md:hidden text-white/50 text-sm bg-black/30 backdrop-blur-sm px-4 py-2 rounded-full">
+            ← swipe to navigate →
+          </div>
           
           <motion.div
             key={src?.url}
@@ -78,7 +137,6 @@ const ImageModal = ({ src, isOpen, onClose, onPrev, onNext }) => {
               alt="Project View"
               className={`max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
               onLoad={() => setImageLoaded(true)}
-              loading="lazy"
             />
           </motion.div>
         </motion.div>
@@ -97,7 +155,6 @@ const AdStyleGallery = ({ images, title, subtitle, onImageClick, isEditMode, onU
   const autoPlayRef = useRef(null)
   const fileInputRef = useRef(null)
 
-  // Auto-play functionality
   useEffect(() => {
     if (images.length <= 1 || !isAutoPlaying) return
 
@@ -144,18 +201,27 @@ const AdStyleGallery = ({ images, title, subtitle, onImageClick, isEditMode, onU
     setThumbnailsLoaded(prev => ({ ...prev, [index]: true }))
   }
 
-  // Exact original grid cols logic
-  const getGridCols = () => {
+  // Get flexbox classes instead of grid - this will fill all space
+  const getFlexClasses = () => {
     const count = images.length
-    if (count <= 3) return `grid-cols-${count}`
-    if (count === 4) return 'grid-cols-2 md:grid-cols-4'
-    if (count === 5) return 'grid-cols-2 md:grid-cols-5'
-    if (count === 6) return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6'
-    if (count === 7) return 'grid-cols-2 md:grid-cols-4 lg:grid-cols-7'
-    if (count === 8) return 'grid-cols-2 md:grid-cols-4 lg:grid-cols-8'
-    if (count === 9) return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-9'
-    if (count === 10) return 'grid-cols-2 md:grid-cols-5 lg:grid-cols-10'
-    return 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6'
+    if (count <= 2) return 'flex flex-wrap justify-center gap-3'
+    if (count === 3) return 'flex flex-wrap justify-center gap-3'
+    if (count === 4) return 'flex flex-wrap justify-center gap-3'
+    return 'flex flex-wrap justify-center gap-3'
+  }
+
+  // Calculate width for each thumbnail based on count
+  const getThumbnailWidth = () => {
+    const count = images.length
+    // Base width for mobile
+    if (count === 1) return 'w-full max-w-[200px]'
+    if (count === 2) return 'w-[calc(50%-6px)] max-w-[150px]'
+    if (count === 3) return 'w-[calc(33.333%-8px)] max-w-[120px]'
+    if (count === 4) return 'w-[calc(50%-6px)] sm:w-[calc(25%-9px)] max-w-[120px]'
+    if (count === 5) return 'w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] lg:w-[calc(20%-10px)] max-w-[120px]'
+    if (count === 6) return 'w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] lg:w-[calc(16.666%-10px)] max-w-[120px]'
+    // For 7+ images, use 4 columns on desktop
+    return 'w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] max-w-[120px]'
   }
 
   return (
@@ -187,11 +253,11 @@ const AdStyleGallery = ({ images, title, subtitle, onImageClick, isEditMode, onU
         </div>
       ) : (
         <div
-          className="max-w-4xl mx-auto px-4"
+          className="max-w-6xl mx-auto px-4"
           onMouseEnter={() => setIsAutoPlaying(false)}
           onMouseLeave={() => setIsAutoPlaying(true)}
         >
-          {/* Main Featured Image - Floating look, uniform sizing, shrunk horizontally */}
+          {/* Main Featured Image */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -217,7 +283,7 @@ const AdStyleGallery = ({ images, title, subtitle, onImageClick, isEditMode, onU
               <button
                 onClick={async (e) => {
                   e.stopPropagation();
-                  if(confirm("Permanently delete this image from Cloudinary?")) {
+                  if(confirm("Permanently delete this image?")) {
                     const success = await deleteFromCloudinary(images[currentIndex].public_id);
                     if (success) {
                       onDelete(currentIndex);
@@ -270,23 +336,23 @@ const AdStyleGallery = ({ images, title, subtitle, onImageClick, isEditMode, onU
             </div>
           </motion.div>
 
-          {/* Thumbnails - Exact original styling and logic */}
+          {/* Thumbnails - Using flexbox to fill all space */}
           {images.length > 1 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className={`grid ${getGridCols()} gap-3 justify-items-center`}
+              className={getFlexClasses()}
             >
               {images.map((img, index) => (
                 <motion.div
                   key={index}
                   whileHover={{ scale: 1.05, y: -5 }}
                   whileTap={{ scale: 0.95 }}
-                  className="w-full max-w-[120px] aspect-square"
+                  className={getThumbnailWidth()}
                 >
                   <div
-                    className={`relative w-full h-full rounded-lg overflow-hidden bg-black cursor-pointer transition-all duration-300 ${
+                    className={`relative w-full pb-[100%] rounded-lg overflow-hidden bg-black cursor-pointer transition-all duration-300 ${
                       index === currentIndex
                         ? 'ring-4 ring-[#EAB308] shadow-xl'
                         : 'ring-2 ring-transparent hover:ring-[#EAB308]/50'
@@ -353,6 +419,8 @@ function App() {
 
   // State for images
   const [galleries, setGalleries] = useState({ uiux: [], brand_identity: [], social_media: [], presentations_print: [] })
+  const [profileUrl, setProfileUrl] = useState(localStorage.getItem('ron_profile_url') || defaultProfile)
+  const [bgUrl, setBgUrl] = useState(localStorage.getItem('ron_bg_url') || defaultBg)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -366,7 +434,11 @@ function App() {
           fetchImagesByTag('presentations_print')
         ])
         setGalleries({ uiux, brand_identity: brand, social_media: social, presentations_print: print })
-      } catch (e) { console.error(e) } finally { setLoading(false) }
+      } catch (error) {
+        console.error('Error loading portfolio images:', error)
+      } finally {
+        setLoading(false)
+      }
     }
     loadAllImages()
   }, [])
@@ -402,6 +474,16 @@ function App() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0])
   const heroScale = useTransform(scrollYProgress, [0, 0.8], [1, 0.8])
 
+  const handleStaticUpload = async (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const data = await uploadToCloudinary(file, `static_${type}`);
+    if (data) {
+      if (type === 'profile') { setProfileUrl(data.url); localStorage.setItem('ron_profile_url', data.url); }
+      else { setBgUrl(data.url); localStorage.setItem('ron_bg_url', data.url); }
+    }
+  }
+
   const allAssets = useMemo(() => [...galleries.uiux, ...galleries.brand_identity, ...galleries.social_media, ...galleries.presentations_print], [galleries])
 
   const scrollToSection = (ref) => {
@@ -431,7 +513,7 @@ function App() {
       >
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo({top:0, behavior:'smooth'})}>
           <div className="w-10 h-10 rounded-full bg-[#EAB308] overflow-hidden">
-            <img src={profilePic} alt="Ron" className="w-full h-full object-cover" />
+            <img src={profileUrl} alt="Ron" className="w-full h-full object-cover" />
           </div>
           <span className={`font-bold transition-colors ${scrolled ? "text-theme-primary" : "text-white"}`}>
             RON MEDINA
@@ -450,18 +532,49 @@ function App() {
         </div>
 
         <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2 bg-white/10 rounded-full transition-colors">
-          {mobileMenuOpen ? <X size={18} className={scrolled ? "text-theme-primary" : "text-white"} /> : <Menu size={18} className={scrolled ? "text-theme-primary" : "text-white"} />}
+          {mobileMenuOpen ? <X size={18} className={scrolled || darkMode ? "text-theme-primary" : "text-white"} /> : <Menu size={18} className={scrolled || darkMode ? "text-theme-primary" : "text-white"} />}
         </button>
+
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-20 left-4 right-4 md:hidden bg-theme-primary rounded-2xl shadow-xl border border-theme p-4"
+            >
+              <div className="flex flex-col gap-4">
+                <button onClick={() => scrollToSection(workRef)} className="text-left px-4 py-3 hover:bg-theme-secondary rounded-xl transition-colors text-theme-primary">Work</button>
+                <button onClick={() => scrollToSection(aboutRef)} className="text-left px-4 py-3 hover:bg-theme-secondary rounded-xl transition-colors text-theme-primary">About</button>
+                <button onClick={() => scrollToSection(contactRef)} className="text-left px-4 py-3 hover:bg-theme-secondary rounded-xl transition-colors text-theme-primary">Contact</button>
+                <div className="border-t border-theme pt-4">
+                  <button onClick={() => setDarkMode(!darkMode)} className="flex items-center justify-between w-full px-4 py-3 hover:bg-theme-secondary rounded-xl transition-colors text-theme-primary">
+                    <span>Theme</span> {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.nav>
 
       {/* Hero Section - Exact Original Styling and Sizes */}
       <section ref={heroRef} className="relative h-screen flex items-center justify-center overflow-hidden bg-black transition-colors duration-500">
         <motion.div style={{ opacity: heroOpacity, scale: heroScale }} className="absolute inset-0">
           <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 20, repeat: Infinity }} className="absolute inset-0">
-            <img src={bgImage} alt="Background" className="w-full h-full object-cover opacity-60 transition-opacity duration-500" />
+            <img src={bgUrl} alt="Background" className="w-full h-full object-cover opacity-60 transition-opacity duration-500" />
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black transition-colors duration-500" />
           </motion.div>
         </motion.div>
+
+        {isEditMode && (
+          <div className="absolute top-24 left-1/2 -translate-x-1/2 z-30">
+            <input type="file" onChange={(e)=>handleStaticUpload(e,'bg')} className="hidden" id="bg-upload" />
+            <label htmlFor="bg-upload" className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-bold cursor-pointer border border-white/20 transition-all flex items-center gap-2">
+              <Upload size={14} /> Update Background
+            </label>
+          </div>
+        )}
 
         <div className="relative z-10 text-center px-4 w-full">
           <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }} className="flex flex-col items-center">
@@ -487,17 +600,25 @@ function App() {
 
       <main className="relative z-20 bg-theme-primary transition-colors duration-500">
 
-        {/* Profile Section - Exact Original Styling and Stats */}
+        {/* Profile Section - Exact Original Stats */}
         <section ref={aboutRef} className="py-16 sm:py-20 md:py-24 lg:py-32 px-4 sm:px-6 md:px-8 lg:px-12">
           <div className="max-w-7xl mx-auto">
             <div className="grid md:grid-cols-2 gap-8 sm:gap-12 md:gap-16 items-center">
-              <motion.div initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="relative group cursor-pointer" onClick={() => setSelectedImage({url: profilePic})}>
-                <div className="relative aspect-[3/4] max-w-sm sm:max-w-md mx-auto">
+              <motion.div initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="relative group cursor-pointer">
+                <div className="relative aspect-[3/4] max-w-sm sm:max-w-md mx-auto" onClick={() => setSelectedImage({url: profileUrl})}>
                   <div className="absolute inset-0 bg-[#EAB308] rounded-[40px] sm:rounded-[50px] md:rounded-[60px] rotate-3 group-hover:rotate-6 transition-transform duration-500" />
                   <div className="absolute inset-3 sm:inset-4 bg-black rounded-[30px] sm:rounded-[40px] md:rounded-[50px] overflow-hidden transition-colors duration-500">
-                    <img src={profilePic} alt="Ron" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                    <img src={profileUrl} alt="Ron" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </div>
+                {isEditMode && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
+                    <input type="file" onChange={(e)=>handleStaticUpload(e,'profile')} className="hidden" id="profile-upload" />
+                    <label htmlFor="profile-upload" className="bg-[#EAB308] text-black px-4 py-2 rounded-full text-xs font-bold cursor-pointer shadow-xl transition-all flex items-center gap-2">
+                      <Upload size={14} /> Update Profile
+                    </label>
+                  </div>
+                )}
               </motion.div>
 
               <motion.div initial={{ opacity: 0, x: 50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="space-y-4 sm:space-y-5 md:space-y-6 px-2 sm:px-0">
@@ -521,8 +642,7 @@ function App() {
                 </div>
 
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => scrollToSection(contactRef)} className="mt-4 sm:mt-6 md:mt-8 group inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-[#EAB308] text-black rounded-full text-sm sm:text-base font-medium">
-                  Let's work together
-                  <ArrowRight size={16} className="sm:w-[18px] sm:h-[18px] group-hover:translate-x-1 transition-transform" />
+                  Let's work together <ArrowRight size={16} className="sm:w-[18px] sm:h-[18px] group-hover:translate-x-1 transition-transform" />
                 </motion.button>
               </motion.div>
             </div>
@@ -539,7 +659,7 @@ function App() {
           </div>
         </section>
 
-        {/* Promise Section - Exact Original Styling and Content */}
+        {/* Promise Section - EXACT ORIGINAL TEXT */}
         <section className="py-16 sm:py-20 md:py-24 lg:py-32 px-4 sm:px-6 md:px-8 lg:px-12 bg-theme-primary transition-colors duration-500">
           <div className="max-w-7xl mx-auto">
             <SectionTitle align="center" subtitle="What I always deliver">Two Things</SectionTitle>
@@ -566,7 +686,7 @@ function App() {
         </section>
       </main>
 
-      {/* Footer - Exact Original Layout and Social Icons */}
+      {/* Footer - EXACT ORIGINAL ICONS & LAYOUT */}
       <footer className="py-16 sm:py-20 md:py-24 px-4 sm:px-6 md:px-8 lg:px-12 bg-theme-primary border-t border-theme relative overflow-hidden transition-colors duration-500">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-10 md:gap-12 text-left">
@@ -577,18 +697,17 @@ function App() {
               {isEditMode && (
                 <div className="mt-8 p-4 bg-theme-secondary rounded-2xl border border-theme inline-block">
                   <p className="text-xs font-bold text-[#EAB308] mb-2 uppercase tracking-wider">Public Link</p>
-                  <button onClick={() => { navigator.clipboard.writeText(window.location.origin + "/ronmedina?view=public"); setCopied(true); setTimeout(()=>setCopied(false),2000); }} className="flex items-center gap-2 px-4 py-2 bg-[#EAB308] text-black rounded-full text-sm font-bold active:scale-95">
-                    {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? "Copied!" : "Copy Link"}
+                  <button onClick={() => { navigator.clipboard.writeText("https://portfolioss-4gai.onrender.com/"); setCopied(true); setTimeout(()=>setCopied(false),2000); }} className="flex items-center gap-2 px-4 py-2 bg-[#EAB308] text-black rounded-full text-sm font-bold active:scale-95">
+                    {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? "Copied!" : "Copy Public Link"}
                   </button>
                 </div>
               )}
 
               <div className="flex gap-3 sm:gap-4 mt-8">
-                <a href="https://linkedin.com" target="_blank" className="w-8 h-8 sm:w-10 sm:h-10 bg-theme-secondary border border-theme rounded-full flex items-center justify-center hover:bg-[#EAB308] hover:text-black transition-colors"><svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
-                <a href="https://instagram.com" target="_blank" className="w-8 h-8 sm:w-10 sm:h-10 bg-theme-secondary border border-theme rounded-full flex items-center justify-center hover:bg-[#EAB308] hover:text-black transition-colors"><svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1112.324 0 6.162 6.162 0 01-12.324 0zM12 16a4 4 0 110-8 4 4 0 010 8zm4.965-10.405a1.44 1.44 0 112.881.001 1.44 1.44 0 01-2.881-.001z"/></svg></a>
+                <a href="https://linkedin.com" target="_blank" className="w-8 h-8 sm:w-10 sm:h-10 bg-theme-secondary border border-theme rounded-full flex items-center justify-center hover:bg-[#EAB308] hover:text-black transition-colors"><svg className="w-4 h-4 sm:w-[18px] sm:h-[18px]" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+                <a href="https://instagram.com" target="_blank" className="w-8 h-8 sm:w-10 sm:h-10 bg-theme-secondary border border-theme rounded-full flex items-center justify-center hover:bg-[#EAB308] hover:text-black transition-colors"><svg className="w-4 h-4 sm:w-[18px] sm:h-[18px]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1112.324 0 6.162 6.162 0 01-12.324 0zM12 16a4 4 0 110-8 4 4 0 010 8zm4.965-10.405a1.44 1.44 0 112.881.001 1.44 1.44 0 01-2.881-.001z"/></svg></a>
               </div>
             </div>
-
             <div><h4 className="text-base sm:text-lg font-medium mb-3 sm:mb-4 md:mb-6">Navigation</h4><ul className="space-y-2 sm:space-y-2.5 opacity-60 text-sm sm:text-base"><li><button onClick={() => scrollToSection(workRef)} className="hover:text-[#EAB308]">Work</button></li><li><button onClick={() => scrollToSection(aboutRef)} className="hover:text-[#EAB308]">About</button></li><li><button onClick={() => scrollToSection(contactRef)} className="hover:text-[#EAB308]">Contact</button></li></ul></div>
             <div><h4 className="text-base sm:text-lg font-medium mb-3 sm:mb-4 md:mb-6">Connect</h4><ul className="space-y-2 sm:space-y-2.5 opacity-60 text-sm sm:text-base"><li><a href="mailto:hello@ronmedina.com" className="hover:text-[#EAB308]">hello@ronmedina.com</a></li><li><a href="https://linkedin.com" target="_blank" className="hover:text-[#EAB308]">LinkedIn</a></li><li><a href="https://instagram.com" target="_blank" className="hover:text-[#EAB308]">Instagram</a></li></ul></div>
           </div>
@@ -603,3 +722,11 @@ function App() {
 }
 
 export default App;
+
+
+//done
+
+
+//done
+
+//charlie
