@@ -3,10 +3,6 @@ import { Plus, Moon, Sun, X, ChevronDown, Sparkles, Eye, ArrowRight, ChevronLeft
 import { useRef, useState, useEffect, useMemo } from 'react'
 import { uploadToCloudinary, fetchImagesByTag, deleteFromCloudinary } from './CloudinaryService'
 
-// Static Assets
-import defaultBg from './assets/BGImage.png'
-import defaultProfile from './assets/52323_2512856396012_1996282797_o 1.svg'
-
 // Optimized Image Modal Component
 const ImageModal = ({ src, isOpen, onClose, onPrev, onNext }) => {
   const [imageLoaded, setImageLoaded] = useState(false)
@@ -419,21 +415,33 @@ function App() {
 
   // State for images
   const [galleries, setGalleries] = useState({ uiux: [], brand_identity: [], social_media: [], presentations_print: [] })
-  const [profileUrl, setProfileUrl] = useState(localStorage.getItem('ron_profile_url') || defaultProfile)
-  const [bgUrl, setBgUrl] = useState(localStorage.getItem('ron_bg_url') || defaultBg)
+  const [profileUrl, setProfileUrl] = useState(localStorage.getItem('ron_profile_url') || '')
+  const [profileId, setProfileId] = useState(localStorage.getItem('ron_profile_id') || '')
+  const [bgUrl, setBgUrl] = useState(localStorage.getItem('ron_bg_url') || '')
+  const [bgId, setBgId] = useState(localStorage.getItem('ron_bg_id') || '')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadAllImages = async () => {
       setLoading(true)
       try {
-        const [uiux, brand, social, print] = await Promise.all([
+        const [uiux, brand, social, print, profiles, bgs] = await Promise.all([
           fetchImagesByTag('uiux_design'),
           fetchImagesByTag('brand_identity'),
           fetchImagesByTag('social_media'),
-          fetchImagesByTag('presentations_print')
+          fetchImagesByTag('presentations_print'),
+          fetchImagesByTag('static_profile'),
+          fetchImagesByTag('static_bg')
         ])
         setGalleries({ uiux, brand_identity: brand, social_media: social, presentations_print: print })
+        if (profiles.length > 0) {
+          const last = profiles[profiles.length - 1]; setProfileUrl(last.url); setProfileId(last.public_id);
+          localStorage.setItem('ron_profile_url', last.url); localStorage.setItem('ron_profile_id', last.public_id);
+        }
+        if (bgs.length > 0) {
+          const last = bgs[bgs.length - 1]; setBgUrl(last.url); setBgId(last.public_id);
+          localStorage.setItem('ron_bg_url', last.url); localStorage.setItem('ron_bg_id', last.public_id);
+        }
       } catch (error) {
         console.error('Error loading portfolio images:', error)
       } finally {
@@ -477,10 +485,18 @@ function App() {
   const handleStaticUpload = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
+    const oldId = type === 'profile' ? profileId : bgId;
+    if (oldId) await deleteFromCloudinary(oldId);
     const data = await uploadToCloudinary(file, `static_${type}`);
     if (data) {
-      if (type === 'profile') { setProfileUrl(data.url); localStorage.setItem('ron_profile_url', data.url); }
-      else { setBgUrl(data.url); localStorage.setItem('ron_bg_url', data.url); }
+      if (type === 'profile') {
+        setProfileUrl(data.url); setProfileId(data.public_id);
+        localStorage.setItem('ron_profile_url', data.url); localStorage.setItem('ron_profile_id', data.public_id);
+      }
+      else {
+        setBgUrl(data.url); setBgId(data.public_id);
+        localStorage.setItem('ron_bg_url', data.url); localStorage.setItem('ron_bg_id', data.public_id);
+      }
     }
   }
 
