@@ -35,12 +35,14 @@ export const uploadToCloudinary = async (file, tag) => {
 
 export const fetchImagesByTag = async (tag) => {
   try {
-    const response = await fetch(`https://res.cloudinary.com/${CLOUD_NAME}/image/list/${tag}.json`);
+    // Added cache buster to URL to fix incognito/update delay
+    const response = await fetch(`https://res.cloudinary.com/${CLOUD_NAME}/image/list/${tag}.json?cb=${new Date().getTime()}`);
     if (response.status === 404) return [];
     const data = await response.json();
     return data.resources.map(res => ({
       url: `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/v${res.version}/${res.public_id}.${res.format}`,
-      public_id: res.public_id
+      public_id: res.public_id,
+      version: res.version // Include version for sorting
     }));
   } catch (error) {
     return [];

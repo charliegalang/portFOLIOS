@@ -141,7 +141,7 @@ const ImageModal = ({ src, isOpen, onClose, onPrev, onNext }) => {
   )
 }
 
-// Advertisement Style Gallery Component
+// Advertisement Style Gallery Component - FIXED: Added image-preserve class to prevent white tint in light mode
 const AdStyleGallery = ({ images, title, subtitle, onImageClick, isEditMode, onUpload, onDelete, categoryId }) => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [mainImageLoaded, setMainImageLoaded] = useState(false)
@@ -253,7 +253,7 @@ const AdStyleGallery = ({ images, title, subtitle, onImageClick, isEditMode, onU
           onMouseEnter={() => setIsAutoPlaying(false)}
           onMouseLeave={() => setIsAutoPlaying(true)}
         >
-          {/* Main Featured Image */}
+          {/* Main Featured Image - FIXED: Added image-preserve class */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -271,7 +271,8 @@ const AdStyleGallery = ({ images, title, subtitle, onImageClick, isEditMode, onU
               key={images[currentIndex]?.url}
               src={images[currentIndex]?.url}
               alt={`${title} featured`}
-              className={`w-full h-full object-contain transition-opacity duration-500 ${mainImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              // FIXED: Added image-preserve class to prevent theme filters from affecting the image
+              className={`w-full h-full object-contain transition-opacity duration-500 image-preserve ${mainImageLoaded ? 'opacity-100' : 'opacity-0'}`}
               onLoad={() => setMainImageLoaded(true)}
             />
 
@@ -363,7 +364,8 @@ const AdStyleGallery = ({ images, title, subtitle, onImageClick, isEditMode, onU
                     <img
                       src={img.url}
                       alt=""
-                      className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${thumbnailsLoaded[index] ? 'opacity-100' : 'opacity-0'}`}
+                      // FIXED: Added image-preserve class to thumbnails
+                      className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 image-preserve ${thumbnailsLoaded[index] ? 'opacity-100' : 'opacity-0'}`}
                       onLoad={() => handleThumbnailLoad(index)}
                       loading="lazy"
                     />
@@ -435,12 +437,16 @@ function App() {
         ])
         setGalleries({ uiux, brand_identity: brand, social_media: social, presentations_print: print })
         if (profiles.length > 0) {
-          const last = profiles[profiles.length - 1]; setProfileUrl(last.url); setProfileId(last.public_id);
-          localStorage.setItem('ron_profile_url', last.url); localStorage.setItem('ron_profile_id', last.public_id);
+          // Sort by version descending to get the absolute latest
+          const latest = profiles.sort((a,b) => b.version - a.version)[0];
+          setProfileUrl(latest.url); setProfileId(latest.public_id);
+          localStorage.setItem('ron_profile_url', latest.url); localStorage.setItem('ron_profile_id', latest.public_id);
         }
         if (bgs.length > 0) {
-          const last = bgs[bgs.length - 1]; setBgUrl(last.url); setBgId(last.public_id);
-          localStorage.setItem('ron_bg_url', last.url); localStorage.setItem('ron_bg_id', last.public_id);
+          // Sort by version descending to get the absolute latest
+          const latest = bgs.sort((a,b) => b.version - a.version)[0];
+          setBgUrl(latest.url); setBgId(latest.public_id);
+          localStorage.setItem('ron_bg_url', latest.url); localStorage.setItem('ron_bg_id', latest.public_id);
         }
       } catch (error) {
         console.error('Error loading portfolio images:', error)
@@ -485,8 +491,15 @@ function App() {
   const handleStaticUpload = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
-    const oldId = type === 'profile' ? profileId : bgId;
-    if (oldId) await deleteFromCloudinary(oldId);
+
+    // Improved deletion logic: Fetch latest from Cloudinary to ensure we delete the correct one
+    const currentImages = await fetchImagesByTag(`static_${type}`);
+    if (currentImages.length > 0) {
+      for (const img of currentImages) {
+        await deleteFromCloudinary(img.public_id);
+      }
+    }
+
     const data = await uploadToCloudinary(file, `static_${type}`);
     if (data) {
       if (type === 'profile') {
@@ -578,8 +591,8 @@ function App() {
       <section ref={heroRef} className="relative h-screen flex items-center justify-center overflow-hidden bg-black transition-colors duration-500">
         <motion.div style={{ opacity: heroOpacity, scale: heroScale }} className="absolute inset-0">
           <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 20, repeat: Infinity }} className="absolute inset-0">
-            <img src={bgUrl} alt="Background" className="w-full h-full object-cover opacity-60 transition-opacity duration-500" />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black transition-colors duration-500" />
+            <img src={bgUrl} alt="Background" className="w-full h-full object-cover opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/10 to-black/20 transition-colors duration-500" />
           </motion.div>
         </motion.div>
 
@@ -738,11 +751,3 @@ function App() {
 }
 
 export default App;
-
-
-//done
-
-
-//done
-
-//charlie
